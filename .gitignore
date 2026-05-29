@@ -2,6 +2,7 @@ __pycache__/
 *.py[cod]
 *.sqlite
 *.sqlite-*
+screenshots/
 .pytest_cache/
 .coverage
 htmlcov/
