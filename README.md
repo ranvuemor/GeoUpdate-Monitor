@@ -1,8 +1,6 @@
-# Earth Imagery Watcher
+# GeoUpdate Monitor
 
-Cross-platform Python MVP for monitoring Google Earth Pro imagery dates for GeoJSON regions.
-
-This project is intentionally date-only. It does not compare imagery pixels.
+GeoUpdate Monitor is a date-only imagery update watcher for Google Earth Pro. It takes GeoJSON regions, generates sample points, opens them in Google Earth Pro through KML, captures the bottom-right imagery date area, and stores check history in SQLite. The project does not compare image pixels; it monitors imagery date changes only.
 
 ## Current MVP
 
