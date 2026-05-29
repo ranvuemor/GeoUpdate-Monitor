@@ -11,6 +11,7 @@ This project is intentionally date-only. It does not compare imagery pixels.
 - Generates temporary KML files with `LookAt` coordinates.
 - Uses a default Google Earth range of 100 km / 100000 meters.
 - Can open generated KML files through the OS default file association.
+- Can capture a bottom-right screenshot crop where Google Earth Pro displays the imagery date.
 - Stores checks in SQLite.
 - Stores separate normal/default and historical/latest imagery date fields.
 - Compares the latest detected date against the previous stored date.
@@ -31,6 +32,20 @@ python -m earth_imagery_watcher.main run examples/sample_region.geojson --open-e
 ```
 
 `--open-earth` only opens the KML files. It does not perform OCR, Historical Imagery slider control, or PyAutoGUI automation.
+
+To open each point, wait for Google Earth Pro to settle, then save the bottom-right date crop:
+
+```powershell
+python -m earth_imagery_watcher.main run examples/sample_region.geojson --open-earth --point-delay-seconds 8 --capture-date-crop --crop-output-dir screenshots
+```
+
+Screenshot capture uses Pillow/ImageGrab. Install the optional dependency with:
+
+```powershell
+pip install "earth-imagery-watcher[screenshot]"
+```
+
+`--capture-date-crop` saves PNG crops only. OCR is still not implemented.
 
 For manual smoke testing without Google Earth automation, pass a detected date:
 

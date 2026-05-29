@@ -11,6 +11,7 @@ from .earth_controller import DefaultFileAssociationEarthController
 from .kml import write_temp_kml
 from .regions import load_geojson
 from .sampling import SamplePoint, generate_sample_points
+from .screenshot_capture import capture_bottom_right_crop
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -27,6 +28,19 @@ def build_parser() -> argparse.ArgumentParser:
     run_parser.add_argument("--range", type=int, default=100000, dest="range_meters", help="Google Earth LookAt range in meters.")
     run_parser.add_argument("--dry-run", action="store_true", help="Generate KML and skip date storage.")
     run_parser.add_argument("--open-earth", action="store_true", help="Open each generated KML using the OS default file association.")
+    run_parser.add_argument(
+        "--capture-date-crop",
+        action="store_true",
+        help="Capture and save the bottom-right imagery date area after opening each KML.",
+    )
+    run_parser.add_argument(
+        "--crop-output-dir",
+        type=Path,
+        default=Path("screenshots"),
+        help="Directory for saved bottom-right date crops.",
+    )
+    run_parser.add_argument("--crop-width", type=int, default=500, help="Width of the bottom-right crop in pixels.")
+    run_parser.add_argument("--crop-height", type=int, default=120, help="Height of the bottom-right crop in pixels.")
     run_parser.add_argument(
         "--point-delay-seconds",
         type=float,
@@ -67,6 +81,16 @@ def run(args: argparse.Namespace) -> int:
                 if args.point_delay_seconds > 0:
                     print(f"  {point.id}: waiting {args.point_delay_seconds:g} second(s)")
                     time.sleep(args.point_delay_seconds)
+
+            if args.capture_date_crop:
+                crop_path = capture_bottom_right_crop(
+                    output_dir=args.crop_output_dir,
+                    region_name=region.name,
+                    sample_id=point.id,
+                    crop_width=args.crop_width,
+                    crop_height=args.crop_height,
+                )
+                print(f"  {point.id}: saved date crop -> {crop_path}")
 
             if args.dry_run:
                 continue
@@ -131,6 +155,8 @@ def _date_from_iso(value: str | None) -> date | None:
 def main() -> int:
     parser = build_parser()
     args = parser.parse_args()
+    if getattr(args, "capture_date_crop", False) and not getattr(args, "open_earth", False):
+        parser.error("--capture-date-crop requires --open-earth so the crop follows a generated KML open.")
     if args.command == "run":
         return run(args)
     parser.error(f"Unknown command: {args.command}")

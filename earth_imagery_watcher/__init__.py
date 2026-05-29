@@ -8,4 +8,5 @@ __all__ = [
     "ocr_reader",
     "date_parser",
     "database",
+    "screenshot_capture",
 ]
