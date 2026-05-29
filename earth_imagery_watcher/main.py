@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import argparse
+import time
 from datetime import date
 from pathlib import Path
 
 from .database import CheckResult, Database, utc_now_iso
 from .date_parser import effective_latest_date, parse_imagery_date
+from .earth_controller import DefaultFileAssociationEarthController
 from .kml import write_temp_kml
 from .regions import load_geojson
 from .sampling import SamplePoint, generate_sample_points
@@ -24,6 +26,13 @@ def build_parser() -> argparse.ArgumentParser:
     run_parser.add_argument("--max-points", type=int, default=5, help="Maximum sample points per region.")
     run_parser.add_argument("--range", type=int, default=100000, dest="range_meters", help="Google Earth LookAt range in meters.")
     run_parser.add_argument("--dry-run", action="store_true", help="Generate KML and skip date storage.")
+    run_parser.add_argument("--open-earth", action="store_true", help="Open each generated KML using the OS default file association.")
+    run_parser.add_argument(
+        "--point-delay-seconds",
+        type=float,
+        default=5,
+        help="Delay between opening sample points when --open-earth is used.",
+    )
     run_parser.add_argument(
         "--manual-normal-date",
         help="Temporary MVP input for the normal/default imagery date, for example 'May 2024'.",
@@ -38,6 +47,7 @@ def build_parser() -> argparse.ArgumentParser:
 def run(args: argparse.Namespace) -> int:
     regions = load_geojson(args.geojson)
     database = Database(args.db)
+    earth_controller = DefaultFileAssociationEarthController() if args.open_earth else None
     if not args.dry_run:
         database.initialize()
 
@@ -50,6 +60,13 @@ def run(args: argparse.Namespace) -> int:
         for point in points:
             kml_path = write_temp_kml(point, range_meters=args.range_meters)
             print(f"  {point.id}: KML -> {kml_path}")
+
+            if earth_controller:
+                print(f"  {point.id}: opening KML with OS default application")
+                earth_controller.open_kml(kml_path)
+                if args.point_delay_seconds > 0:
+                    print(f"  {point.id}: waiting {args.point_delay_seconds:g} second(s)")
+                    time.sleep(args.point_delay_seconds)
 
             if args.dry_run:
                 continue
