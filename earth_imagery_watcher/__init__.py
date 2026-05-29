@@ -9,4 +9,5 @@ __all__ = [
     "date_parser",
     "database",
     "screenshot_capture",
+    "idle",
 ]

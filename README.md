@@ -39,11 +39,21 @@ To open each point, wait for Google Earth Pro to settle, then save the bottom-ri
 python -m earth_imagery_watcher.main run examples/sample_region.geojson --open-earth --point-delay-seconds 8 --capture-date-crop --crop-output-dir screenshots
 ```
 
-Screenshot capture uses Pillow/ImageGrab. Install the optional dependency with:
+Google Earth Pro may need extra time on the first point while the app opens, restores state, loads imagery, and finishes navigation. Use a longer first-point delay and optional retry captures when needed:
+
+```powershell
+python -m earth_imagery_watcher.main run examples/delhi_region.geojson --open-earth --first-point-delay-seconds 15 --point-delay-seconds 8 --capture-date-crop --capture-retries 2 --capture-retry-delay-seconds 2 --crop-output-dir screenshots
+```
+
+Screenshot capture uses Pillow/ImageGrab. On Windows, the preferred auto-hide taskbar handling is to move the mouse away from the bottom edge and crop from the detected Google Earth Pro window instead of the full screen. If the Google Earth window cannot be detected, the app prints a warning and falls back to a full-screen crop.
+
+Install the optional screenshot dependencies with:
 
 ```powershell
 pip install "earth-imagery-watcher[screenshot]"
 ```
+
+`--crop-bottom-offset` is available as an advanced fallback, but it is not the main taskbar solution. Setting it too high can crop above the Google Earth imagery date/status bar and miss the date entirely.
 
 `--capture-date-crop` saves PNG crops only. OCR is still not implemented.
 
@@ -52,6 +62,16 @@ For manual smoke testing without Google Earth automation, pass a detected date:
 ```powershell
 python -m earth_imagery_watcher.main run examples/sample_region.geojson --manual-normal-date "May 2024" --manual-historical-date "June 2024"
 ```
+
+To start the bot before taking a break and let it wait until the laptop is idle:
+
+```powershell
+python -m earth_imagery_watcher.main run examples/delhi_region.geojson --wait-until-idle --idle-minutes 10 --open-earth --capture-date-crop
+```
+
+Idle waiting is currently a pre-run gate only: once the idle threshold is reached, the normal workflow starts and does not pause again if you become active. On Windows, idle detection uses the system last-input timer. On unsupported platforms, `--wait-until-idle` exits with a clear error.
+
+For a night run, use Windows Task Scheduler to run the command at night. Full built-in scheduling is planned for later.
 
 ## Planned Automation Layer
 
