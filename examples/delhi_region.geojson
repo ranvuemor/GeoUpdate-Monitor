@@ -1,0 +1,23 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Delhi NCR Sample"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [76.84, 28.39],
+            [77.46, 28.39],
+            [77.46, 28.89],
+            [76.84, 28.89],
+            [76.84, 28.39]
+          ]
+        ]
+      }
+    }
+  ]
+}

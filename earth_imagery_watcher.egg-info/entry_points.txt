@@ -1,0 +1,2 @@
+[console_scripts]
+earth-imagery-watcher = earth_imagery_watcher.main:main

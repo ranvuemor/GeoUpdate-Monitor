@@ -1,3 +1,18 @@
+Metadata-Version: 2.4
+Name: earth-imagery-watcher
+Version: 0.1.0
+Summary: Date-only Google Earth Pro imagery update monitor for GeoJSON regions.
+Requires-Python: >=3.10
+Description-Content-Type: text/markdown
+License-File: LICENSE
+Provides-Extra: ocr
+Requires-Dist: opencv-python>=4.9; extra == "ocr"
+Requires-Dist: pytesseract>=0.3.10; extra == "ocr"
+Requires-Dist: Pillow>=10.0; extra == "ocr"
+Provides-Extra: automation
+Requires-Dist: pyautogui>=0.9.54; extra == "automation"
+Dynamic: license-file
+
 # Earth Imagery Watcher
 
 Cross-platform Python MVP for monitoring Google Earth Pro imagery dates for GeoJSON regions.

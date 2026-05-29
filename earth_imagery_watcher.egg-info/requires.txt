@@ -1,0 +1,8 @@
+
+[automation]
+pyautogui>=0.9.54
+
+[ocr]
+opencv-python>=4.9
+pytesseract>=0.3.10
+Pillow>=10.0
