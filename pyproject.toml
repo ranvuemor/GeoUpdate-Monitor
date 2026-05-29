@@ -1,0 +1,24 @@
+[project]
+name = "earth-imagery-watcher"
+version = "0.1.0"
+description = "Date-only Google Earth Pro imagery update monitor for GeoJSON regions."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = []
+
+[project.optional-dependencies]
+ocr = [
+    "opencv-python>=4.9",
+    "pytesseract>=0.3.10",
+    "Pillow>=10.0",
+]
+automation = [
+    "pyautogui>=0.9.54",
+]
+
+[project.scripts]
+earth-imagery-watcher = "earth_imagery_watcher.main:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
