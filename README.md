@@ -55,6 +55,20 @@ pip install "earth-imagery-watcher[screenshot]"
 
 `--capture-date-crop` saves PNG crops only. OCR is still not implemented.
 
+To run OCR manually against an existing crop image:
+
+```powershell
+python -m earth_imagery_watcher.main ocr screenshots\Berlin-Sample_berlin-sample-sample-1_20260529T120000Z_date_crop.png
+```
+
+OCR uses PaddleOCR and is currently a standalone command only. It prints raw OCR text, detected text blocks, confidence, and the parsed imagery date. Install the optional OCR dependency with:
+
+```powershell
+pip install "earth-imagery-watcher[ocr]"
+```
+
+The `run` workflow does not invoke OCR automatically yet.
+
 For manual smoke testing without Google Earth automation, pass a detected date:
 
 ```powershell

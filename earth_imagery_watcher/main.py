@@ -10,6 +10,7 @@ from .date_parser import effective_latest_date, parse_imagery_date
 from .earth_controller import DefaultFileAssociationEarthController
 from .idle import idle_minutes_to_seconds, wait_until_idle
 from .kml import write_temp_kml
+from .ocr_reader import PaddleImageryDateOcrReader
 from .regions import load_geojson
 from .sampling import SamplePoint, generate_sample_points
 from .screenshot_capture import (
@@ -107,6 +108,9 @@ def build_parser() -> argparse.ArgumentParser:
         default=15,
         help="Polling interval while waiting for system idle time.",
     )
+
+    ocr_parser = subparsers.add_parser("ocr", help="Run OCR against an existing date crop image.")
+    ocr_parser.add_argument("image_path", type=Path, help="Path to an existing screenshot crop image.")
     return parser
 
 
@@ -219,6 +223,26 @@ def run(args: argparse.Namespace) -> int:
     return 0
 
 
+def run_ocr(args: argparse.Namespace) -> int:
+    result = PaddleImageryDateOcrReader().read_image(args.image_path)
+    print("Raw OCR text:")
+    print(result.raw_text or "(none)")
+    print()
+    print("Detected text blocks:")
+    if result.text_blocks:
+        for index, block in enumerate(result.text_blocks, start=1):
+            confidence = f"{block.confidence:.3f}" if block.confidence is not None else "unknown"
+            print(f"  {index}. text={block.text!r}, confidence={confidence}")
+    else:
+        print("  (none)")
+    confidence = f"{result.confidence:.3f}" if result.confidence is not None else "unknown"
+    parsed_date = result.parsed_imagery_date.isoformat() if result.parsed_imagery_date else "None"
+    print()
+    print(f"Confidence: {confidence}")
+    print(f"Parsed imagery date: {parsed_date}")
+    return 0
+
+
 def delay_for_point(
     point_index: int,
     point_delay_seconds: float,
@@ -277,6 +301,8 @@ def main() -> int:
         parser.error("--idle-check-interval-seconds must be zero or greater.")
     if args.command == "run":
         return run(args)
+    if args.command == "ocr":
+        return run_ocr(args)
     parser.error(f"Unknown command: {args.command}")
     return 2
 
