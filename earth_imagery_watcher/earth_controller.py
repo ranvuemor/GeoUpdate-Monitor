@@ -25,6 +25,9 @@ class EarthController(Protocol):
 
 
 class DefaultFileAssociationEarthController:
+    def __init__(self):
+        self._earth_automation = None
+
     def open_kml(self, kml_path: Path) -> None:
         path = Path(kml_path)
         system = platform.system()
@@ -36,6 +39,23 @@ class DefaultFileAssociationEarthController:
 
     def read_imagery_dates(self) -> ImageryDateReading:
         raise NotImplementedError("Google Earth Pro OCR automation is not implemented in this MVP.")
+
+    def toggle_historical_imagery(self, enable: bool = True) -> None:
+        """Toggle the Historical Imagery view in Google Earth Pro.
+        
+        Requires PyAutoGUI and the automation mode to be available.
+        """
+        try:
+            from .earth_automation import EarthAutomation
+        except ImportError as exc:
+            raise RuntimeError(
+                "Historical Imagery automation requires PyAutoGUI. Install with: pip install 'earth-imagery-watcher[automation]'"
+            ) from exc
+
+        if not self._earth_automation:
+            self._earth_automation = EarthAutomation()
+        
+        self._earth_automation.toggle_historical_imagery(enable)
 
 
 class NotImplementedEarthController:

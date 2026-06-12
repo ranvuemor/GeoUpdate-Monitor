@@ -98,18 +98,99 @@ python -m earth_imagery_watcher.main run examples/delhi_region.geojson --wait-un
 
 Idle waiting is currently a pre-run gate only: once the idle threshold is reached, the normal workflow starts and does not pause again if you become active. On Windows, idle detection uses the system last-input timer. On unsupported platforms, `--wait-until-idle` exits with a clear error.
 
-For a night run, use Windows Task Scheduler to run the command at night. Full built-in scheduling is planned for later.
+For a night run, use Windows Task Scheduler to run the command at night.
 
-## Planned Automation Layer
+## Historical Imagery Automation
 
-The `EarthController` interface is where the later PyAutoGUI/OpenCV/Tesseract workflow belongs:
+To capture and OCR both normal (default) and historical latest imagery dates, enable Historical Imagery mode:
 
-1. Open Google Earth Pro with generated KML.
-2. Screenshot the viewport.
-3. Crop the bottom-right imagery-date area.
-4. OCR the normal/default date.
-5. Enable Historical Imagery.
-6. Move slider to the latest/rightmost image.
-7. OCR the historical latest date.
+```powershell
+python -m earth_imagery_watcher.main run examples/sample_region.geojson --open-earth --capture-date-crop --ocr-date
+```
 
-Historical Imagery automation is planned but not implemented yet.
+The workflow will:
+1. Open each KML point in Google Earth Pro
+2. Capture the default/normal imagery date using OCR
+3. Toggle Historical Imagery (Ctrl+H)
+4. Move slider to the latest/rightmost historical image (End key)
+5. Capture the historical latest imagery date using OCR
+
+Requires: `pip install "earth-imagery-watcher[automation]"`
+
+## Configuration System
+
+Create a configuration file to persist settings across runs:
+
+```powershell
+python -m earth_imagery_watcher.main config --generate config.json
+```
+
+Then use it in future runs:
+
+```powershell
+python -m earth_imagery_watcher.main run examples/sample_region.geojson --config config.json
+```
+
+## Built-in Scheduling
+
+Schedule recurring checks using the built-in scheduler:
+
+```python
+from earth_imagery_watcher.scheduler import SimpleScheduler
+
+scheduler = SimpleScheduler()
+scheduler.add_daily_job("morning-check", callback=check_imagery, hour=8, minute=0)
+scheduler.add_interval_job("every-six-hours", callback=check_imagery, interval_minutes=360)
+scheduler.run_forever(check_interval_seconds=60)
+```
+
+## Notifications
+
+Get notified when imagery dates change:
+
+**Webhook notifications:**
+```python
+from earth_imagery_watcher.notifications import NotificationSender, DateChangeEvent
+
+sender = NotificationSender(webhook_url="https://your-server.com/webhook")
+event = DateChangeEvent(...)
+sender.send_webhook(event)
+```
+
+**Slack notifications:**
+```python
+sender.send_slack("https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK", event)
+```
+
+**Email notifications:**
+```python
+sender.send_email(
+    event,
+    recipients=["user@example.com"],
+    smtp_server="smtp.gmail.com",
+    smtp_port=587,
+    sender="bot@example.com",
+    password="app-password",
+)
+```
+
+**Event logging:**
+```python
+from earth_imagery_watcher.notifications import EventLogger
+
+logger = EventLogger("imagery-events.jsonl")
+logger.log_event(event)
+```
+
+## Architecture: Automation Layer
+
+The `EarthController` and `EarthAutomation` classes handle Google Earth Pro interaction:
+
+1. Open Google Earth Pro with generated KML
+2. Screenshot the viewport
+3. Crop the bottom-right imagery-date area
+4. OCR the normal/default date
+5. Toggle Historical Imagery (Ctrl+H via PyAutoGUI)
+6. Move slider to latest (End key or arrow keys via PyAutoGUI)
+7. OCR the historical latest date
+8. Store results in SQLite and notify on changes
