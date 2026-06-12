@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import time
+from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
 
@@ -10,7 +11,7 @@ from .date_parser import effective_latest_date, parse_imagery_date
 from .earth_controller import DefaultFileAssociationEarthController
 from .idle import idle_minutes_to_seconds, wait_until_idle
 from .kml import write_temp_kml
-from .ocr_reader import PaddleImageryDateOcrReader
+from .ocr_reader import OcrResult, PaddleImageryDateOcrReader
 from .regions import load_geojson
 from .sampling import SamplePoint, generate_sample_points
 from .screenshot_capture import (
@@ -38,6 +39,11 @@ def build_parser() -> argparse.ArgumentParser:
         "--capture-date-crop",
         action="store_true",
         help="Capture and save the bottom-right imagery date area after opening each KML.",
+    )
+    run_parser.add_argument(
+        "--ocr-date",
+        action="store_true",
+        help="Run OCR on captured date crops and use the parsed normal imagery date.",
     )
     run_parser.add_argument(
         "--crop-output-dir",
@@ -124,6 +130,7 @@ def run(args: argparse.Namespace) -> int:
     regions = load_geojson(args.geojson)
     database = Database(args.db)
     earth_controller = DefaultFileAssociationEarthController() if args.open_earth else None
+    ocr_reader = PaddleImageryDateOcrReader() if args.ocr_date else None
     if not args.dry_run:
         database.initialize()
 
@@ -135,6 +142,7 @@ def run(args: argparse.Namespace) -> int:
         print(f"{region.name}: generated {len(points)} sample point(s)")
 
         for point in points:
+            selected_ocr_result: OcrResult | None = None
             selected_delay = delay_for_point(
                 point_index=point_index,
                 point_delay_seconds=args.point_delay_seconds,
@@ -185,18 +193,37 @@ def run(args: argparse.Namespace) -> int:
                     mode = "window" if capture_result.used_window_crop else "full-screen fallback"
                     print(f"  {point.id}: capture mode={mode}, crop_box={capture_result.crop_box}")
                     print(f"  {point.id}: saved date crop -> {capture_result.path}")
+                    if ocr_reader:
+                        ocr_result = read_crop_ocr(ocr_reader, capture_result.path, point.id)
+                        if ocr_result and selected_ocr_result is None:
+                            selected_ocr_result = ocr_result
+                        elif (
+                            ocr_result
+                            and selected_ocr_result
+                            and selected_ocr_result.parsed_imagery_date is None
+                            and ocr_result.parsed_imagery_date is not None
+                        ):
+                            selected_ocr_result = ocr_result
 
             point_index += 1
 
             if args.dry_run:
                 continue
 
-            normal_date = parse_imagery_date(args.manual_normal_date)
+            normal_fields = normal_date_fields_from_sources(
+                manual_normal_date=args.manual_normal_date,
+                ocr_result=selected_ocr_result,
+            )
+            normal_date = normal_fields.parsed_date
             historical_date = parse_imagery_date(args.manual_historical_date)
             latest = effective_latest_date(normal_date, historical_date)
             previous = database.latest_for_sample(point.id, region_id=region.id)
             changed = _is_newer(latest, _date_from_iso(previous.effective_latest_date) if previous else None)
-            status = "manual" if args.manual_normal_date or args.manual_historical_date else "no_date"
+            status = check_status(
+                manual_normal_date=args.manual_normal_date,
+                manual_historical_date=args.manual_historical_date,
+                normal_fields=normal_fields,
+            )
 
             database.save_check(
                 CheckResult(
@@ -208,9 +235,9 @@ def run(args: argparse.Namespace) -> int:
                     normal_imagery_date=_date_to_iso(normal_date),
                     historical_latest_date=_date_to_iso(historical_date),
                     effective_latest_date=_date_to_iso(latest),
-                    normal_raw_text=args.manual_normal_date,
+                    normal_raw_text=normal_fields.raw_text,
                     historical_raw_text=args.manual_historical_date,
-                    normal_confidence=None,
+                    normal_confidence=normal_fields.confidence,
                     historical_confidence=None,
                     status=status,
                     zoom_range_m=args.range_meters,
@@ -241,6 +268,70 @@ def run_ocr(args: argparse.Namespace) -> int:
     print(f"Confidence: {confidence}")
     print(f"Parsed imagery date: {parsed_date}")
     return 0
+
+
+@dataclass(frozen=True)
+class NormalDateFields:
+    raw_text: str | None
+    parsed_date: date | None
+    confidence: float | None = None
+    source: str = "none"
+
+
+def normal_date_fields_from_sources(
+    manual_normal_date: str | None,
+    ocr_result: OcrResult | None,
+) -> NormalDateFields:
+    if manual_normal_date:
+        return NormalDateFields(
+            raw_text=manual_normal_date,
+            parsed_date=parse_imagery_date(manual_normal_date),
+            confidence=None,
+            source="manual",
+        )
+    if ocr_result:
+        return NormalDateFields(
+            raw_text=ocr_result.raw_text or None,
+            parsed_date=ocr_result.parsed_imagery_date,
+            confidence=ocr_result.confidence,
+            source="ocr",
+        )
+    return NormalDateFields(raw_text=None, parsed_date=None, confidence=None, source="none")
+
+
+def check_status(
+    manual_normal_date: str | None,
+    manual_historical_date: str | None,
+    normal_fields: NormalDateFields,
+) -> str:
+    if manual_normal_date or manual_historical_date:
+        return "manual"
+    if normal_fields.source == "ocr" and normal_fields.parsed_date:
+        return "ocr"
+    if normal_fields.source == "ocr":
+        return "ocr_no_date"
+    return "no_date"
+
+
+def read_crop_ocr(
+    ocr_reader: PaddleImageryDateOcrReader,
+    crop_path: Path,
+    point_id: str,
+) -> OcrResult | None:
+    try:
+        result = ocr_reader.read_image(crop_path)
+    except Exception as exc:
+        print(f"  {point_id}: warning: OCR failed for {crop_path}: {exc}")
+        return None
+
+    print(f"  {point_id}: OCR raw text -> {result.raw_text or '(none)'}")
+    confidence = f"{result.confidence:.3f}" if result.confidence is not None else "unknown"
+    print(f"  {point_id}: OCR confidence -> {confidence}")
+    parsed_date = result.parsed_imagery_date.isoformat() if result.parsed_imagery_date else "None"
+    print(f"  {point_id}: OCR parsed date -> {parsed_date}")
+    if result.parsed_imagery_date is None:
+        print(f"  {point_id}: warning: OCR did not find a valid imagery date")
+    return result
 
 
 def delay_for_point(
@@ -283,6 +374,8 @@ def main() -> int:
     args = parser.parse_args()
     if getattr(args, "capture_date_crop", False) and not getattr(args, "open_earth", False):
         parser.error("--capture-date-crop requires --open-earth so the crop follows a generated KML open.")
+    if getattr(args, "ocr_date", False) and not getattr(args, "capture_date_crop", False):
+        parser.error("--ocr-date requires --capture-date-crop.")
     if getattr(args, "crop_bottom_offset", 0) < 0:
         parser.error("--crop-bottom-offset must be zero or greater.")
     if getattr(args, "pre_screenshot_delay", 0) < 0:

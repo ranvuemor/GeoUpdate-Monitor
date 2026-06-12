@@ -2,18 +2,25 @@
 
 GeoUpdate Monitor is a date-only imagery update watcher for Google Earth Pro. It takes GeoJSON regions, generates sample points, opens them in Google Earth Pro through KML, captures the bottom-right imagery date area, and stores check history in SQLite. The project does not compare image pixels; it monitors imagery date changes only.
 
-## Current MVP
+## Status: Functional MVP
 
-- Loads GeoJSON Polygon and MultiPolygon regions.
-- Generates sample points inside each region.
-- Generates temporary KML files with `LookAt` coordinates.
-- Uses a default Google Earth range of 100 km / 100000 meters.
-- Can open generated KML files through the OS default file association.
-- Can capture a bottom-right screenshot crop where Google Earth Pro displays the imagery date.
-- Stores checks in SQLite.
-- Stores separate normal/default and historical/latest imagery date fields.
-- Compares the latest detected date against the previous stored date.
-- Leaves Google Earth Pro automation behind an `EarthController` interface.
+Implemented:
+
+- GeoJSON region loading
+- Sample point generation
+- KML creation
+- Google Earth Pro navigation
+- Screenshot crop capture
+- PaddleOCR-based date extraction
+- Date parsing and normalization
+- SQLite history and change detection
+
+Planned:
+
+- Historical Imagery automation
+- Idle-aware execution
+- Scheduled runs
+- Notifications
 
 ## CLI
 
@@ -53,7 +60,15 @@ pip install "earth-imagery-watcher[screenshot]"
 
 `--crop-bottom-offset` is available as an advanced fallback, but it is not the main taskbar solution. Setting it too high can crop above the Google Earth imagery date/status bar and miss the date entirely.
 
-`--capture-date-crop` saves PNG crops only. OCR is still not implemented.
+`--capture-date-crop` saves PNG crops. Add `--ocr-date` when you want the run workflow to OCR those crops.
+
+To capture crops and immediately OCR the normal/default imagery date:
+
+```powershell
+python -m earth_imagery_watcher.main run examples/sample_region.geojson --open-earth --capture-date-crop --ocr-date
+```
+
+When `--ocr-date` is enabled, OCR runs only after a crop is saved. The parsed OCR date is stored in the normal imagery date fields and compared using the same date-change logic as manual dates. If OCR cannot find a valid date, the app prints a warning, stores the raw OCR artifact data when available, and continues with the remaining points.
 
 To run OCR manually against an existing crop image:
 
@@ -61,13 +76,13 @@ To run OCR manually against an existing crop image:
 python -m earth_imagery_watcher.main ocr screenshots\Berlin-Sample_berlin-sample-sample-1_20260529T120000Z_date_crop.png
 ```
 
-OCR uses PaddleOCR and is currently a standalone command only. It prints raw OCR text, detected text blocks, confidence, and the parsed imagery date. Install the optional OCR dependency with:
+OCR uses PaddleOCR. The standalone `ocr` command prints raw OCR text, detected text blocks, confidence, and the parsed imagery date. Install the optional OCR dependency with:
 
 ```powershell
 pip install "earth-imagery-watcher[ocr]"
 ```
 
-The `run` workflow does not invoke OCR automatically yet.
+Historical Imagery OCR is not automated yet.
 
 For manual smoke testing without Google Earth automation, pass a detected date:
 
