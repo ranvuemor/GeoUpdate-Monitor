@@ -18,6 +18,16 @@ screenshot = [
 automation = [
     "pyautogui>=0.9.54",
 ]
+notifications = [
+    "requests>=2.28",
+]
+all = [
+    "paddleocr>=2.7",
+    "Pillow>=10.0",
+    "pyautogui>=0.9.54",
+    "pygetwindow>=0.0.9",
+    "requests>=2.28",
+]
 
 [project.scripts]
 earth-imagery-watcher = "earth_imagery_watcher.main:main"

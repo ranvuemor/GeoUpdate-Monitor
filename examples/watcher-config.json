@@ -1,0 +1,51 @@
+{
+  "version": "1",
+  "db_path": "watcher.sqlite",
+  "max_points_per_region": 5,
+  "range_meters": 100000,
+  "earth": {
+    "open_earth_pro": true,
+    "point_delay_seconds": 5,
+    "first_point_delay_seconds": 15,
+    "capture_date_crop": true,
+    "crop_output_dir": "screenshots",
+    "crop_width": 500,
+    "crop_height": 120,
+    "crop_bottom_offset": 0,
+    "pre_screenshot_delay": 1.0,
+    "capture_retries": 2,
+    "capture_retry_delay_seconds": 2.0,
+    "ocr_date": true,
+    "ocr_confidence_threshold": 0.3
+  },
+  "idle": {
+    "wait_until_idle": false,
+    "idle_minutes": 10,
+    "idle_check_interval_seconds": 15
+  },
+  "notifications": {
+    "enabled": true,
+    "email_recipients": [
+      "user@example.com"
+    ],
+    "slack_webhook_url": null,
+    "webhook_url": null,
+    "send_on_no_change": false
+  },
+  "schedule_rules": [
+    {
+      "name": "daily-morning-check",
+      "geojson_path": "examples/sample_region.geojson",
+      "frequency": "daily",
+      "hour_of_day": 8,
+      "enabled": true
+    },
+    {
+      "name": "six-hourly-check",
+      "geojson_path": "examples/delhi_region.geojson",
+      "frequency": "custom",
+      "interval_minutes": 360,
+      "enabled": true
+    }
+  ]
+}
