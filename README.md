@@ -14,13 +14,14 @@ Implemented:
 - PaddleOCR-based date extraction
 - Date parsing and normalization
 - SQLite history and change detection
+- Idle-aware pre-run waiting
 
 Planned:
 
 - Historical Imagery automation
-- Idle-aware execution
-- Scheduled runs
-- Notifications
+- CLI/config-file driven runs
+- Fully integrated scheduled runs
+- Notifications wired into date-change checks
 
 ## CLI
 
@@ -102,38 +103,39 @@ For a night run, use Windows Task Scheduler to run the command at night.
 
 ## Historical Imagery Automation
 
-To capture and OCR both normal (default) and historical latest imagery dates, enable Historical Imagery mode:
+Historical Imagery UI automation is not wired into the `run` workflow yet. The repository includes an experimental `EarthAutomation` helper for PyAutoGUI keyboard actions, but there is no CLI flag yet that performs the full normal-date plus historical-latest-date workflow end to end.
+
+Current `run` behavior captures and OCRs the normal/default imagery date only:
 
 ```powershell
 python -m earth_imagery_watcher.main run examples/sample_region.geojson --open-earth --capture-date-crop --ocr-date
 ```
 
-The workflow will:
+Planned historical workflow:
+
 1. Open each KML point in Google Earth Pro
 2. Capture the default/normal imagery date using OCR
-3. Toggle Historical Imagery (Ctrl+H)
-4. Move slider to the latest/rightmost historical image (End key)
+3. Toggle Historical Imagery
+4. Move the slider to the latest/rightmost historical image
 5. Capture the historical latest imagery date using OCR
 
 Requires: `pip install "earth-imagery-watcher[automation]"`
 
-## Configuration System
+## Configuration Helpers
 
-Create a configuration file to persist settings across runs:
+The repository includes configuration dataclasses and a helper for creating a default config file from Python. Config files are not yet wired into the CLI `run` command.
 
-```powershell
-python -m earth_imagery_watcher.main config --generate config.json
+```python
+from earth_imagery_watcher.config import ConfigManager, create_default_config_file
+
+create_default_config_file("config.json")
+manager = ConfigManager("config.json")
+config = manager.config
 ```
 
-Then use it in future runs:
+## Scheduling Helpers
 
-```powershell
-python -m earth_imagery_watcher.main run examples/sample_region.geojson --config config.json
-```
-
-## Built-in Scheduling
-
-Schedule recurring checks using the built-in scheduler:
+The repository includes a small in-process scheduler helper. It is not yet integrated into the CLI.
 
 ```python
 from earth_imagery_watcher.scheduler import SimpleScheduler
@@ -144,9 +146,9 @@ scheduler.add_interval_job("every-six-hours", callback=check_imagery, interval_m
 scheduler.run_forever(check_interval_seconds=60)
 ```
 
-## Notifications
+## Notification Helpers
 
-Get notified when imagery dates change:
+The repository includes notification helper classes. They are not yet wired into automatic date-change handling in `run`.
 
 **Webhook notifications:**
 ```python
@@ -184,13 +186,18 @@ logger.log_event(event)
 
 ## Architecture: Automation Layer
 
-The `EarthController` and `EarthAutomation` classes handle Google Earth Pro interaction:
+The current `EarthController` opens KML files through the OS default file association. `EarthAutomation` contains experimental PyAutoGUI helpers for future Historical Imagery interaction.
 
-1. Open Google Earth Pro with generated KML
-2. Screenshot the viewport
-3. Crop the bottom-right imagery-date area
-4. OCR the normal/default date
-5. Toggle Historical Imagery (Ctrl+H via PyAutoGUI)
-6. Move slider to latest (End key or arrow keys via PyAutoGUI)
-7. OCR the historical latest date
-8. Store results in SQLite and notify on changes
+Implemented workflow:
+
+1. Generate and open KML files
+2. Capture the bottom-right imagery-date area
+3. OCR the normal/default date
+4. Store results in SQLite and compare date changes
+
+Future workflow:
+
+1. Toggle Historical Imagery via UI automation
+2. Move the slider to latest/rightmost imagery
+3. OCR the historical latest date
+4. Notify when confirmed date changes are detected

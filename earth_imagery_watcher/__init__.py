@@ -10,4 +10,8 @@ __all__ = [
     "database",
     "screenshot_capture",
     "idle",
+    "earth_automation",
+    "config",
+    "scheduler",
+    "notifications",
 ]
